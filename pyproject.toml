@@ -1,0 +1,13 @@
+[project]
+name = "jev-poc"
+version = "0.1.0"
+description = "Invoice mail triage PoC on TypeSafe System One (Jev)"
+requires-python = ">=3.11"
+dependencies = [
+    "typesafe-sdk>=0.7.0",
+    "pymap>=0.36.7",
+]
+
+# Not an installable package: run modules directly with `uv run python -m jev_poc.<mod>`.
+[tool.uv]
+package = false

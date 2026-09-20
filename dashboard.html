@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email triage dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #1c2128;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-2: #8b949e;
+      --accent-auto: #3fb950;
+      --accent-review: #f0883e;
+      --accent-below: #f85149;
+      --accent-caution: #f9c513;
+      --accent-paid: #58a6ff;
+      --accent-unclear: #d29922;
+      --accent-requested: #f778ba;
+      --accent-muted: #6e7681;
+      --font-ui: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    a { color: var(--accent-paid); }
+    a:focus-visible { outline: 2px solid var(--accent-paid); outline-offset: 2px; }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .live {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-muted);
+      box-shadow: 0 0 0 0 transparent;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .live.ok .dot { background: var(--accent-auto); box-shadow: 0 0 10px rgba(63, 185, 80, 0.35); }
+    .live.fetching .dot { background: var(--accent-caution); animation: pulse 1s infinite; }
+    .live.error .dot { background: var(--accent-below); }
+    .live.nodata .dot { background: var(--accent-muted); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .last-refresh { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .card .label {
+      font-size: 0.78rem;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    .card .value {
+      font-size: 1.9rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+
+    .card .sub {
+      font-size: 0.8rem;
+      color: var(--text-2);
+      margin-top: 4px;
+    }
+
+    .card.review {
+      border-color: rgba(240, 134, 62, 0.45);
+      background: linear-gradient(180deg, rgba(240, 134, 62, 0.12) 0%, var(--panel) 100%);
+    }
+
+    .card.review .value { color: var(--accent-review); }
+
+    .card.auto .value { color: var(--accent-auto); }
+
+    section + section { margin-top: 28px; }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 0 12px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .review-queue {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .review-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .review-item:last-child { border-bottom: none; }
+
+    .review-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .review-meta {
+      min-width: 0;
+    }
+
+    .review-subject {
+      font-weight: 600;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .review-from {
+      font-size: 0.85rem;
+      color: var(--text-2);
+    }
+
+    .reasons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      border: 1px solid transparent;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chip.review { background: rgba(240, 134, 62, 0.15); color: var(--accent-review); border-color: rgba(240, 134, 62, 0.35); }
+    .chip.auto { background: rgba(63, 185, 80, 0.12); color: var(--accent-auto); border-color: rgba(63, 185, 80, 0.3); }
+    .chip.below { background: rgba(248, 81, 73, 0.12); color: var(--accent-below); border-color: rgba(248, 81, 73, 0.3); }
+    .chip.caution { background: rgba(249, 197, 19, 0.12); color: var(--accent-caution); border-color: rgba(249, 197, 19, 0.3); }
+    .chip.paid { background: rgba(88, 166, 255, 0.12); color: var(--accent-paid); border-color: rgba(88, 166, 255, 0.3); }
+    .chip.unclear { background: rgba(210, 153, 34, 0.12); color: var(--accent-unclear); border-color: rgba(210, 153, 34, 0.3); }
+    .chip.requested { background: rgba(247, 120, 186, 0.12); color: var(--accent-requested); border-color: rgba(247, 120, 186, 0.3); }
+    .chip.muted { background: var(--panel-2); color: var(--text-2); border-color: var(--border); }
+    .muted { color: var(--text-2); }
+
+    .gt-chips { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+    .breakdowns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .breakdown .row {
+      display: grid;
+      grid-template-columns: 1fr auto 90px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .breakdown .row:last-child { border-bottom: none; }
+
+    .breakdown .bar-bg {
+      height: 6px;
+      background: var(--panel-2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .breakdown .bar {
+      height: 100%;
+      border-radius: 3px;
+      min-width: 2px;
+    }
+
+    .breakdown .count { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .breakdown .row {
+      cursor: pointer;
+      border-radius: 6px;
+      margin: 0 -6px;
+      padding: 6px;
+    }
+
+    .breakdown .row:hover { background: var(--panel-2); }
+    .breakdown .row.active { background: rgba(240, 134, 62, 0.12); box-shadow: inset 0 0 0 1px rgba(240, 134, 62, 0.55); }
+    .breakdown .row:focus-visible { outline: 2px solid var(--accent-paid); outline-offset: 2px; }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+    }
+
+    .filter-text { color: var(--text-2); }
+
+    .empty-filter {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-2);
+    }
+
+    .empty-filter button {
+      margin-left: 8px;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: auto;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-2);
+      color: var(--text-2);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    tbody tr.review-row { background: rgba(240, 134, 62, 0.06); }
+
+    .cell-subject { max-width: 260px; }
+    .cell-subject .subject { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cell-subject .from { font-size: 0.8rem; color: var(--text-2); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .num { font-variant-numeric: tabular-nums; }
+
+    .conf {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .conf .dot {
+      width: 6px;
+      height: 6px;
+    }
+
+    .conf .part { display: inline-flex; align-items: center; gap: 4px; }
+
+    .below-floor { color: var(--accent-below); font-weight: 600; }
+    .caution { color: var(--accent-caution); }
+
+    details { margin: 0; }
+
+    summary {
+      cursor: pointer;
+      color: var(--text-2);
+      font-size: 0.8rem;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::before {
+      content: "▸";
+      font-size: 0.75rem;
+      color: var(--accent-muted);
+      transition: transform 0.15s ease;
+    }
+
+    details[open] summary::before { transform: rotate(90deg); }
+
+    summary:focus-visible { outline: 2px solid var(--accent-paid); outline-offset: 2px; border-radius: 2px; }
+
+    .raw-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px 16px;
+      margin: 12px 0;
+      font-size: 0.85rem;
+    }
+
+    .raw-grid .kv { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .raw-grid .k { color: var(--text-2); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .raw-grid .v {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .raw-grid .v[title] { cursor: help; }
+    .raw-grid .note { color: var(--text-2); font-size: 0.72rem; line-height: 1.35; margin-top: 2px; }
+
+    .conf-label {
+      color: var(--text-2);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .answers-section { margin-top: 14px; }
+    .answers-section-title { font-size: 0.78rem; font-weight: 600; color: var(--text); margin: 0 0 6px; }
+    .answers-note { font-size: 0.78rem; color: var(--text-2); margin: 0 0 10px; line-height: 1.4; }
+
+    .answers-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px 14px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .answers-list .kv { display: flex; justify-content: space-between; gap: 8px; }
+    .answers-list .k { color: var(--text-2); font-size: 0.78rem; }
+    .answers-list .v { font-family: var(--font-mono); font-size: 0.8rem; }
+
+    .skipped {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: var(--text-2);
+    }
+
+    .empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-2);
+    }
+
+    .empty strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Email triage dashboard</h1>
+      <div class="live nodata" id="liveIndicator" aria-live="polite">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="liveText">No data yet</span>
+        <span class="last-refresh" id="lastRefresh"></span>
+      </div>
+    </header>
+
+    <main id="app">
+      <div class="empty">
+        <strong>Waiting for results.</strong><br>
+        Polling <code>results.jsonl</code> every 2 seconds.
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    const DATA_URL = "results.jsonl";
+    const LABELS_URL = "fixtures/LABELS.json";
+    const POLL_MS = 2000;
+
+    const THRESHOLDS = {
+      kind: 0.60,
+      category: 0.90,
+    };
+
+    const CAUTION_KIND = 0.90;
+
+    let previousFingerprint = "";
+    let lastSuccessAt = null;
+    let records = [];
+    let skippedCount = 0;
+    let labelsMap = new Map(); // message_id -> label
+    let liveState = "nodata";
+    let labelsLoaded = false;
+
+    const filters = { kind: null, category: null };
+    const expanded = new Set();
+    let focusTarget = null;
+    let savedScrollY = 0;
+
+    const $ = (sel) => document.querySelector(sel);
+    const liveIndicator = $("#liveIndicator");
+    const liveText = $("#liveText");
+    const lastRefresh = $("#lastRefresh");
+    const app = $("#app");
+
+    function escapeHtml(str) {
+      return String(str ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    function fmtNum(n, digits = 2) {
+      const num = Number(n);
+      if (!Number.isFinite(num)) return "?";
+      return num.toFixed(digits);
+    }
+
+    function fmtPct(num, total) {
+      if (!total) return "0%";
+      return Math.round((num / total) * 100) + "%";
+    }
+
+    function setLive(state, text) {
+      liveState = state;
+      liveIndicator.className = `live ${state}`;
+      liveText.textContent = text;
+      if (lastSuccessAt) {
+        lastRefresh.textContent = "· " + lastSuccessAt.toLocaleTimeString();
+      } else {
+        lastRefresh.textContent = "";
+      }
+    }
+
+    function parseRecords(text) {
+      const lines = text.split("\n").filter((l) => l.trim() !== "");
+      const out = [];
+      let skipped = 0;
+      for (const line of lines) {
+        try {
+          out.push(JSON.parse(line));
+        } catch (e) {
+          skipped += 1;
+        }
+      }
+      return { records: out, skipped };
+    }
+
+    function fingerprint(text) {
+      const lines = text.split("\n").filter((l) => l.trim() !== "");
+      if (lines.length === 0) return "empty";
+      return `${lines.length}|${lines[lines.length - 1]}`;
+    }
+
+    async function loadLabels() {
+      try {
+        const res = await fetch(LABELS_URL, { cache: "no-store" });
+        if (!res.ok) return;
+        const labels = await res.json();
+        const files = Object.keys(labels);
+        const settled = await Promise.allSettled(
+          files.map(async (file) => {
+            const r = await fetch(`fixtures/${encodeURIComponent(file)}`, { cache: "no-store" });
+            if (!r.ok) throw new Error("not found");
+            const text = await r.text();
+            const m = text.match(/^[ \t]*Message-Id:[ \t]*(.+)$/im);
+            const mid = m ? m[1].trim() : null;
+            if (!mid) throw new Error("no message id");
+            return { mid, label: labels[file] };
+          })
+        );
+        const next = new Map();
+        for (const s of settled) {
+          if (s.status === "fulfilled") next.set(s.value.mid, s.value.label);
+        }
+        labelsMap = next;
+        labelsLoaded = true;
+      } catch (e) {
+        // Ground truth is optional; fail silently.
+      }
+    }
+
+    async function tick() {
+      if (liveState !== "error") setLive("fetching", "Fetching…");
+      try {
+        const res = await fetch(DATA_URL, { cache: "no-store" });
+        if (!res.ok) {
+          if (res.status === 404) {
+            previousFingerprint = "";
+            records = [];
+            skippedCount = 0;
+            lastSuccessAt = new Date();
+            setLive("nodata", "No data yet");
+            render();
+            return;
+          }
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const text = await res.text();
+        const fp = fingerprint(text);
+        if (fp !== previousFingerprint) {
+          previousFingerprint = fp;
+          const parsed = parseRecords(text);
+          records = parsed.records;
+          skippedCount = parsed.skipped;
+          render();
+        }
+        lastSuccessAt = new Date();
+        setLive(records.length ? "ok" : "nodata", records.length ? "Live" : "No data yet");
+      } catch (e) {
+        setLive("error", "Refresh failed");
+      }
+    }
+
+    function thresholdClass(field, value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "below-floor";
+      if (field === "kind" && n < THRESHOLDS.kind) return "below-floor";
+      if (field === "kind" && n < CAUTION_KIND) return "caution";
+      if (field === "category" && n < THRESHOLDS.category) return "below-floor";
+      return "";
+    }
+
+    function decisionChip(decision) {
+      return decision === "review"
+        ? `<span class="chip review">review</span>`
+        : `<span class="chip auto">auto</span>`;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return "—";
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return escapeHtml(String(dateStr));
+      const now = new Date();
+      const diffMs = now - d;
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+      let relative = "";
+      if (Math.abs(diffDays) < 1) relative = rtf.format(0, "day");
+      else if (Math.abs(diffDays) < 7) relative = rtf.format(-diffDays, "day");
+      else if (Math.abs(diffDays) < 30) relative = rtf.format(-Math.round(diffDays / 7), "week");
+      const absolute = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
+      const relPart = relative ? ` · ${escapeHtml(relative)}` : "";
+      return `<span title="${escapeHtml(d.toISOString())}">${escapeHtml(absolute)}${relPart}</span>`;
+    }
+
+    function confidenceCell(r) {
+      const kc = thresholdClass("kind", r.kind_confidence);
+      const cc = thresholdClass("category", r.category_confidence);
+      const part = (cls, label, value, title) => `<span class="part ${cls}" title="${title}"><span class="conf-label">${label}</span>${fmtNum(value)}</span>`;
+      return `
+        <span class="conf">
+          ${part(kc, "kind", r.kind_confidence, `kind confidence; floor ${THRESHOLDS.kind}`)}
+          /
+          ${part(cc, "cat", r.category_confidence, `category confidence; floor ${THRESHOLDS.category}`)}
+        </span>`;
+    }
+
+    function matchesFilters(r) {
+      return (!filters.kind || r.kind === filters.kind) && (!filters.category || r.category === filters.category);
+    }
+
+    function filterBar(filteredCount, total) {
+      const active = [];
+      for (const axis of ["kind", "category"]) {
+        const v = filters[axis];
+        if (v) {
+          active.push(`<button class="chip active" data-clear-axis="${axis}" aria-label="Clear ${escapeHtml(axis)} filter">${escapeHtml(axis)}: ${escapeHtml(v)} ×</button>`);
+        }
+      }
+      if (active.length === 0) return "";
+      return `
+        <div class="filter-bar">
+          <span class="filter-text">Showing ${filteredCount} of ${total} emails</span>
+          ${active.join("")}
+          <button class="chip muted" data-clear-all aria-label="Clear all filters">Clear all</button>
+        </div>`;
+    }
+
+    function saveUiState() {
+      savedScrollY = window.scrollY;
+      const active = document.activeElement;
+      if (active && active.classList.contains("row") && active.dataset.axis) {
+        focusTarget = { axis: active.dataset.axis, value: active.dataset.value };
+      }
+    }
+
+    function restoreUiState() {
+      for (const details of app.querySelectorAll("details[data-message-id]")) {
+        if (expanded.has(details.dataset.messageId)) details.open = true;
+      }
+      if (focusTarget) {
+        const el = app.querySelector(`.breakdown .row[data-axis="${focusTarget.axis}"][data-value="${focusTarget.value}"]`);
+        if (el) el.focus();
+        focusTarget = null;
+      }
+      window.scrollTo({ top: savedScrollY, behavior: "auto" });
+    }
+
+    function countBy(recs, key) {
+      const map = new Map();
+      for (const r of recs) {
+        const v = r[key] ?? "?";
+        map.set(v, (map.get(v) || 0) + 1);
+      }
+      return Array.from(map.entries());
+    }
+
+    function breakdownRows(recs, key, colorMap) {
+      const counts = countBy(recs, key);
+      if (counts.length === 0) return `<div class="row"><span class="muted">No data</span></div>`;
+      const max = Math.max(...counts.map(([, n]) => n));
+      const total = recs.length;
+      return counts
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, n]) => {
+          const color = colorMap[label] || "var(--accent-muted)";
+          const width = max ? (n / max) * 100 : 0;
+          const active = filters[key] === label;
+          return `
+            <div class="row ${active ? "active" : ""}" role="button" tabindex="0" aria-pressed="${active}" data-axis="${escapeHtml(key)}" data-value="${escapeHtml(label)}" aria-label="Filter by ${escapeHtml(key)}: ${escapeHtml(label)}, ${n} emails">
+              <span>${escapeHtml(label)}</span>
+              <div class="bar-bg"><div class="bar" style="width:${width.toFixed(1)}%;background:${color}"></div></div>
+              <span class="count num">${n} <span style="color:var(--text-2)">(${fmtPct(n, total)})</span></span>
+            </div>`;
+        })
+        .join("");
+    }
+
+    function renderAnswers(answers) {
+      if (!answers || typeof answers !== "object") return "";
+
+      const groups = [
+        {
+          title: "What kind of email?",
+          keys: ["kind", "states_amount_owed", "from_billing_entity", "has_billing_identifiers", "is_promotional"],
+        },
+        {
+          title: "Which category?",
+          keys: ["category", "about_education", "about_electricity", "about_telecom", "about_banking", "about_airline"],
+        },
+      ];
+
+      const used = new Set();
+      const row = (k, v) => `<div class="kv"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(typeof v === "number" ? fmtNum(v, 3) : String(v ?? "?"))}</span></div>`;
+
+      let sections = "";
+      for (const g of groups) {
+        const items = g.keys
+          .filter((k) => Object.prototype.hasOwnProperty.call(answers, k))
+          .map((k) => { used.add(k); return row(k, answers[k]); })
+          .join("");
+        if (!items) continue;
+        sections += `
+          <div class="answers-section">
+            <div class="answers-section-title">${escapeHtml(g.title)}</div>
+            <div class="answers-list">${items}</div>
+          </div>`;
+      }
+
+      const leftoverKeys = Object.keys(answers).filter((k) => !used.has(k));
+      if (leftoverKeys.length) {
+        sections += `
+          <div class="answers-section">
+            <div class="answers-section-title">Other answers</div>
+            <div class="answers-list">${leftoverKeys.map((k) => row(k, answers[k])).join("")}</div>
+          </div>`;
+      }
+
+      return `
+        <div class="answers-note">
+          All 11 questions are asked in a single API call and evaluated independently in parallel.
+          The code combines them afterwards, so some answers are deliberately ignored when they do not apply — for example, payment-related questions are only used for routing when the email is actually a bill.
+        </div>
+        ${sections}`;
+    }
+
+    function groundTruthHtml(record) {
+      const label = labelsMap.get(record.message_id);
+      if (!label) {
+        return `<td><span class="gt-chips"><span class="muted">—</span></span></td>`;
+      }
+      const k = label.kind === record.kind;
+      const c = label.category === record.category;
+      const exact = k && c;
+      const part = (ok, name) => `<span class="chip ${ok ? "auto" : "below"}" title="${name} ${ok ? "matches" : "differs"}">${name}</span>`;
+      return `
+        <td>
+          <span class="gt-chips">
+            ${exact ? `<span class="chip auto" title="kind and category both match">exact</span>` : ""}
+            ${part(k, "K")} ${part(c, "C")}
+          </span>
+        </td>`;
+    }
+
+    function render() {
+      if (records.length === 0) {
+        app.innerHTML = `
+          <div class="empty">
+            <strong>No results yet.</strong><br>
+            The listener writes to <code>results.jsonl</code>. Polling every ${POLL_MS / 1000} seconds.
+          </div>`;
+        return;
+      }
+
+      const total = records.length;
+      const review = records.filter((r) => r.decision === "review");
+      const autoCount = total - review.length;
+      const reviewRate = fmtPct(review.length, total);
+
+      let exactMatches = 0;
+      for (const r of records) {
+        const label = labelsMap.get(r.message_id);
+        if (label && label.kind === r.kind && label.category === r.category) exactMatches += 1;
+      }
+
+      const kindColors = {
+        invoice: "var(--accent-paid)",
+        payment_confirmation: "var(--accent-auto)",
+        account_statement: "var(--accent-unclear)",
+        promotion: "var(--accent-review)",
+        newsletter: "var(--accent-requested)",
+        other: "var(--text-2)",
+      };
+      const categoryColors = {
+        education: "#a371f7",
+        electricity: "var(--accent-unclear)",
+        telecom: "var(--accent-requested)",
+        banking: "var(--accent-caution)",
+        airline: "var(--accent-paid)",
+        other: "var(--text-2)",
+      };
+      const gtHeader = labelsMap.size ? `<th scope="col">Ground truth</th>` : "";
+      const gtColGroup = labelsMap.size ? `<col>` : "";
+
+      const reviewQueue = review.length
+        ? `
+          <section>
+            <h2 class="section-title"><span class="dot" style="background:var(--accent-review)"></span> Review queue — ${review.length} item${review.length === 1 ? "" : "s"}</h2>
+            <div class="review-queue">
+              ${review
+                .map((r) => `
+                  <div class="review-item">
+                    <div class="review-header">
+                      <div class="review-meta" style="max-width:100%">
+                        <div class="review-subject" title="${escapeHtml(r.subject)}">${escapeHtml(r.subject)}</div>
+                        <div class="review-from">${escapeHtml(r.from_email)} · ${formatDate(r.date)}</div>
+                      </div>
+                      ${decisionChip(r.decision)}
+                    </div>
+                    <div class="reasons">
+                      ${r.review_reasons.map((reason) => `<span class="chip review">${escapeHtml(reason)}</span>`).join("")}
+                    </div>
+                  </div>`)
+                .join("")}
+            </div>
+          </section>`
+        : "";
+
+      const breakdowns = `
+        <section>
+          <h2 class="section-title">Breakdowns</h2>
+          <div class="breakdowns">
+            <div class="card breakdown">
+              <div class="label">Kind</div>
+              ${breakdownRows(records, "kind", kindColors)}
+            </div>
+            <div class="card breakdown">
+              <div class="label">Category</div>
+              ${breakdownRows(records, "category", categoryColors)}
+            </div>
+          </div>
+        </section>`;
+
+      const filteredRecords = records.filter(matchesFilters);
+      const filterBarHtml = filterBar(filteredRecords.length, total);
+
+      const tableRowsHtml = [...filteredRecords]
+        .reverse()
+        .map((r) => {
+          const gt = labelsMap.size ? groundTruthHtml(r) : "";
+          return `
+            <tr class="${r.decision === "review" ? "review-row" : ""}">
+              <td class="num">${formatDate(r.date)}</td>
+              <td class="cell-subject">
+                <div class="subject" title="${escapeHtml(r.subject)}">${escapeHtml(r.subject)}</div>
+                <div class="from" title="${escapeHtml(r.from_email)}">${escapeHtml(r.from_email)}</div>
+              </td>
+              <td>${escapeHtml(r.kind ?? "?")}</td>
+              <td>
+                ${escapeHtml(r.category ?? "?")}
+                ${r.category_level && r.category_level !== "category" ? `<span class="chip muted" title="coarse fallback">${escapeHtml(r.category_level)}</span>` : ""}
+              </td>
+              <td>${decisionChip(r.decision)}</td>
+              <td class="num">${confidenceCell(r)}</td>
+              ${gt}
+            </tr>
+                <tr>
+                  <td colspan="${labelsMap.size ? 7 : 6}" style="padding:0 12px 12px;">
+                    <details data-message-id="${escapeHtml(r.message_id)}">
+                      <summary>Raw answers · ${escapeHtml(r.model)} · ${(r.input_tokens ?? "?") + " / " + (r.output_tokens ?? "?")} tokens</summary>
+                  <div class="raw-grid">
+                    <div class="kv"><span class="k">Message ID</span><span class="v" title="${escapeHtml(r.message_id)}">${escapeHtml(r.message_id)}</span></div>
+                    <div class="kv"><span class="k">Request ID</span><span class="v" title="${escapeHtml(r.request_id)}">${escapeHtml(r.request_id)}</span></div>
+                     <div class="kv"><span class="k">Category level</span><span class="v">${escapeHtml(r.category_level)}</span><span class="note">category = confident; other = stepped down to coarse fallback</span></div>
+                     <div class="kv"><span class="k">Is bill</span><span class="v">${r.is_bill ? "true" : "false"}</span></div>
+                  </div>
+                  ${renderAnswers(r.answers)}
+                </details>
+              </td>
+            </tr>`;
+        })
+        .join("");
+
+      const skippedHtml = skippedCount
+        ? `<div class="skipped">${skippedCount} line${skippedCount === 1 ? "" : "s"} skipped because they could not be parsed.</div>`
+        : "";
+
+      const exactHtml = labelsMap.size
+        ? `
+          <div class="card">
+            <div class="label">Ground truth exact</div>
+            <div class="value">${exactMatches}<span style="font-size:1rem;color:var(--text-2)">/${total}</span></div>
+            <div class="sub">kind + category</div>
+          </div>`
+        : "";
+
+      saveUiState();
+      app.innerHTML = `
+        <div class="summary">
+          <div class="card">
+            <div class="label">Total emails</div>
+            <div class="value">${total}</div>
+          </div>
+          <div class="card auto">
+            <div class="label">Auto-routed</div>
+            <div class="value">${autoCount}</div>
+            <div class="sub">${fmtPct(autoCount, total)} of total</div>
+          </div>
+          <div class="card review">
+            <div class="label">Needs review</div>
+            <div class="value">${review.length}</div>
+            <div class="sub">${reviewRate} review rate</div>
+          </div>
+          ${exactHtml}
+        </div>
+
+        ${reviewQueue}
+        ${breakdowns}
+
+        <section>
+          <h2 class="section-title">All emails · newest first</h2>
+          ${filterBarHtml}
+          <div class="table-wrap">
+            ${filteredRecords.length
+              ? `<table>
+                  <colgroup><col><col><col><col><col><col>${gtColGroup}</colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">Recency</th>
+                      <th scope="col">Subject / From</th>
+                      <th scope="col">Kind</th>
+                      <th scope="col">Category</th>
+                      <th scope="col">Decision</th>
+                      <th scope="col" title="kind / category confidence">Confidences</th>
+                      ${gtHeader}
+                    </tr>
+                  </thead>
+                  <tbody>${tableRowsHtml}</tbody>
+                </table>`
+              : `<div class="empty-filter">No emails match the active filters.<button class="chip muted" data-clear-all aria-label="Clear all filters">Clear all</button></div>`}
+          </div>
+          ${skippedHtml}
+        </section>
+      `;
+      restoreUiState();
+    }
+
+    function toggleFilter(axis, value) {
+      filters[axis] = filters[axis] === value ? null : value;
+      render();
+    }
+
+    app.addEventListener("click", (e) => {
+      const row = e.target.closest(".breakdown .row");
+      if (row) {
+        toggleFilter(row.dataset.axis, row.dataset.value);
+        return;
+      }
+      const clearAxis = e.target.closest("[data-clear-axis]");
+      if (clearAxis) {
+        filters[clearAxis.dataset.clearAxis] = null;
+        render();
+        return;
+      }
+      const clearAll = e.target.closest("[data-clear-all]");
+      if (clearAll) {
+        filters.kind = null;
+        filters.category = null;
+        render();
+      }
+    });
+
+    app.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const row = e.target.closest(".breakdown .row");
+      if (!row) return;
+      e.preventDefault();
+      toggleFilter(row.dataset.axis, row.dataset.value);
+    });
+
+    app.addEventListener("toggle", (e) => {
+      const details = e.target.closest("details[data-message-id]");
+      if (!details) return;
+      if (details.open) expanded.add(details.dataset.messageId);
+      else expanded.delete(details.dataset.messageId);
+    }, true);
+
+    await loadLabels();
+    await tick();
+    setInterval(tick, POLL_MS);
+  </script>
+</body>
+</html>

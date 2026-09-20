@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+results.jsonl
+.run/
+.typesafe-docs/
+mailbox/
+fixtures/
+uv.lock
