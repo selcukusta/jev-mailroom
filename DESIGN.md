@@ -6,7 +6,7 @@ record of *why*.
 
 ## Method
 
-Two habits this project adopted the hard way, both after getting something wrong.
+Three habits this project adopted the hard way, each after getting something wrong.
 
 **Never conclude from a single run.** An LLM-backed classifier carries run-to-run variance, so a
 single sample is not a measurement. Two conclusions here were overturned by simply repeating the
@@ -29,7 +29,7 @@ useful runs were the ones that said so plainly rather than adjusting the test to
 | 6 synthetic English fixtures (since deleted) | 6/6 exact on `kind` + `category` |
 | 9 real emails | 9/9 confirmed by hand |
 | 7 further real emails | the two the owner checked were both mis-read; that drove a criteria fix |
-| 19 real emails (current set) | every label stable except one genuine knife-edge case — see below |
+| 19 real emails (current set) | every label stable; one case still varies in whether it escalates — see below |
 
 The synthetic fixture set is gone, along with its label file — `fixtures/` is untracked, so when
 it was repurposed for real mail the test data was lost. The numbers above are a record of
@@ -154,18 +154,24 @@ not recognised, though the `>` quote prefix and `____` separators are universal.
 quote can therefore survive into the text being judged, and quoted history can flip a verdict.
 
 **A threshold is a threshold, not a proof.** Any bar with a case sitting on it will flap between
-identical runs. Two were observed here, on two different thresholds:
+identical runs. Two were observed here, on two different thresholds, and neither was caused by the
+change under test — a controlled A/B varying only `criteria.examples` reproduced the flapping in
+both arms:
 
-- `category` confidence measuring 0.86–0.91 across five runs, straddling the `0.90` floor
-- a corroborating question measuring 0.39–0.52 across five runs, straddling the
-  `CATEGORY_CORROBORATION_MIN` bar of `0.50` — and that one toggled both the category label
-  (`other` ↔ `telecom`) and the decision (`auto` ↔ `review`)
+- **Category confidence at 0.86–0.91**, straddling the `0.90` floor. Resolved not by moving the
+  floor but by renaming the category (`school` → `education`), which lifted it to a stable
+  0.96–0.98. The option *name* mattered more than the threshold.
+- **A corroborating question at 0.39–0.52**, straddling what was then a `0.50` bar. That one
+  toggled the category label (`other` ↔ `telecom`) *and* the decision. Moving the bar off the
+  midpoint to the `0.70` band edge fixed the **label** — it now settles on `other` on every run,
+  where before it sometimes landed on `telecom` and stayed there. The **decision** still varies,
+  because the model's raw guess itself toggles: when it names a specific category and we overrule
+  it, that overrule is a review; when it says `other` outright, there is nothing to overrule. That
+  residual is the model's uncertainty, not the logic flapping.
 
-Neither was caused by the change under test; both were pre-existing, and a controlled A/B with the
-only varied element being `criteria.examples` reproduced the flapping in both arms. So: repeat any
-measurement, and when a case sits on a bar, treat the *escalation* as the correct outcome rather
-than trying to make it deterministic. That is why the rescue mechanism consults an independent
-judgment instead of letting one number decide alone.
+So: repeat any measurement, and when a case sits on a bar, treat the *escalation* as the correct
+outcome rather than trying to make it deterministic. That is why the rescue mechanism consults an
+independent judgment instead of letting one number decide alone.
 
 **Some labels are only as good as the input.** A perfectly confident label over a thin input is
 still thin: an attachment-only invoice can be classified `1.00` while the invoice itself is never
