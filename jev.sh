@@ -158,7 +158,7 @@ stop_proc() {
 cmd_start() {
   mkdir -p "$RUN_DIR"
 
-  start_proc stub uv run python -m jev_poc.imap_stub
+  start_proc stub uv run python -m mailroom.imap_stub
   # Readiness gate: the listener will crash-loop until the IMAP port answers,
   # so block on the actual port rather than sleeping a guessed interval.
   if ! wait_for_port "$IMAP_HOST" "$STUB_PORT" 20; then
@@ -168,7 +168,7 @@ cmd_start() {
     return 1
   fi
 
-  start_proc listener uv run python -m jev_poc.listener "$@"
+  start_proc listener uv run python -m mailroom.listener "$@"
   start_proc dashboard uv run python -m http.server "$DASH_PORT"
 
   echo
@@ -232,7 +232,7 @@ cmd_import() {
   # there is nothing to bounce.
   local out imported total pid
   out="$(uv run python -c '
-from jev_poc.imap_stub import (DEFAULT_FIXTURES, DEFAULT_MAILDIR,
+from mailroom.imap_stub import (DEFAULT_FIXTURES, DEFAULT_MAILDIR,
                                _count_messages, import_fixtures)
 imported = import_fixtures(DEFAULT_FIXTURES, DEFAULT_MAILDIR)
 print(imported, _count_messages(DEFAULT_MAILDIR))

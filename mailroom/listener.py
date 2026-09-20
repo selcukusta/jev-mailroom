@@ -1,11 +1,11 @@
 """Mail listener: poll a local IMAP INBOX and triage unseen messages.
 
-Run with ``uv run python -m jev_poc.listener``::
+Run with ``uv run python -m mailroom.listener``::
 
     --once            one poll pass, then exit
     --interval N      poll every N seconds (default 5)
     --offline         pass live=False to triage (no API calls)
-    --user/--password/--host/--port   overrides for the jev_poc defaults
+    --user/--password/--host/--port   overrides for the mailroom defaults
 
 Each triaged result is appended as one JSON object per line to
 ``<repo>/results.jsonl`` and printed as a compact row.
@@ -22,16 +22,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from jev_poc import IMAP_HOST, IMAP_PASSWORD, IMAP_PORT, IMAP_USER
+from mailroom import IMAP_HOST, IMAP_PASSWORD, IMAP_PORT, IMAP_USER
 
-#: Repository root (this file lives in ``<repo>/jev_poc/``).
+#: Repository root (this file lives in ``<repo>/mailroom/``).
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_PATH = REPO_ROOT / "results.jsonl"
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="jev_poc.listener",
+        prog="mailroom.listener",
         description="Poll a local IMAP INBOX and triage unseen messages.",
     )
     parser.add_argument("--once", action="store_true",
@@ -140,7 +140,7 @@ def _run_pass(args: argparse.Namespace, offline: bool,
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     # Lazy import: triage.py may still be under construction at import time.
-    from jev_poc.triage import parse_eml, triage
+    from mailroom.triage import parse_eml, triage
 
     if args.once:
         try:

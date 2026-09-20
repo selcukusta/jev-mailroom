@@ -8,6 +8,6 @@ dependencies = [
     "pymap>=0.36.7",
 ]
 
-# Not an installable package: run modules directly with `uv run python -m jev_poc.<mod>`.
+# Not an installable package: run modules directly with `uv run python -m mailroom.<mod>`.
 [tool.uv]
 package = false

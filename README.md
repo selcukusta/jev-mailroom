@@ -47,8 +47,8 @@ Working on the pipeline itself:
 
 | Command | Description |
 |---|---|
-| `uv run python -m jev_poc.questions` | self-check the question battery and its thresholds |
-| `uv run python -m jev_poc.listener --once --offline` | one poll pass without calling the API |
+| `uv run python -m mailroom.questions` | self-check the question battery and its thresholds |
+| `uv run python -m mailroom.listener --once --offline` | one poll pass without calling the API |
 
 ## What it labels
 

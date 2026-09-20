@@ -496,7 +496,7 @@ def questions() -> dict:
 
 
 def demo() -> None:
-    """Self-check the battery's own invariants. Run: uv run python -m jev_poc.questions"""
+    """Self-check the battery's own invariants. Run: uv run python -m mailroom.questions"""
     battery = questions()
 
     expected = {

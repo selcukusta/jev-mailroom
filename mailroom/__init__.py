@@ -1,4 +1,4 @@
-"""jev_poc - invoice mail triage PoC on TypeSafe System One (Jev).
+"""mailroom - invoice mail triage PoC on TypeSafe System One (Jev).
 
 A fake IMAP mailbox feeds a listener, which asks Jev one batched call per email and
 turns the typed answers into a routing decision in plain Python.

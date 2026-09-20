@@ -1,6 +1,6 @@
 """A real local IMAP server backed by a Maildir, plus fixture import.
 
-`uv run python -m jev_poc.imap_stub` stands up a genuine pymap IMAP server on
+`uv run python -m mailroom.imap_stub` stands up a genuine pymap IMAP server on
 ``IMAP_HOST:IMAP_PORT`` serving ``<repo>/mailbox``. Dropping ``*.eml`` files into
 ``<repo>/fixtures`` (or calling :func:`import_fixtures`) makes mail "arrive".
 
@@ -19,9 +19,9 @@ import time
 from email import message_from_bytes
 from pathlib import Path
 
-from jev_poc import IMAP_HOST, IMAP_PASSWORD, IMAP_PORT, IMAP_USER
+from mailroom import IMAP_HOST, IMAP_PASSWORD, IMAP_PORT, IMAP_USER
 
-#: Repository root (this file lives in ``<repo>/jev_poc/``).
+#: Repository root (this file lives in ``<repo>/mailroom/``).
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MAILDIR = REPO_ROOT / "mailbox"
 DEFAULT_FIXTURES = REPO_ROOT / "fixtures"

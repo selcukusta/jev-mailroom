@@ -18,8 +18,8 @@ from email.utils import parseaddr
 from html.parser import HTMLParser
 from typing import Any
 
-from jev_poc import load_api_key
-from jev_poc.questions import (
+from mailroom import load_api_key
+from mailroom.questions import (
     CATEGORIES,
     CATEGORY_CORROBORATION_MIN,
     CATEGORY_DISAGREEMENT_MAX,
