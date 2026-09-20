@@ -12,6 +12,12 @@ fixtures/*.eml → mailbox/ (Maildir) → IMAP :1143 → listener → Jev (1 cal
                                         decisions in Python → results.jsonl → dashboard :8000
 ```
 
+![The dashboard: summary cards showing the auto-routed / needs-review split, a review queue with
+the reason each item needs a human, kind and category breakdowns, and the email table with a
+confidence marked as below its floor](docs/dashboard.png)
+
+*The dashboard, on synthetic demo data.*
+
 ## Why a decision engine rather than an LLM
 
 Jev is not a text generator. You send it content plus a set of typed questions, and it returns
