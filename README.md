@@ -168,3 +168,7 @@ Both `fixtures/` and `mailbox/` are gitignored, so your mail is never committed.
 
 Why the thresholds are set where they are, the measurements they were fitted from, and the
 machinery that was removed along the way: [DESIGN.md](DESIGN.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
