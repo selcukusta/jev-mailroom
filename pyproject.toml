@@ -1,7 +1,7 @@
 [project]
-name = "jev-poc"
+name = "jev-mailroom"
 version = "0.1.0"
-description = "Invoice mail triage PoC on TypeSafe System One (Jev)"
+description = "Mailbox triage PoC on TypeSafe System One (Jev)"
 requires-python = ">=3.11"
 dependencies = [
     "typesafe-sdk>=0.7.0",

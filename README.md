@@ -1,4 +1,4 @@
-# jev_intro
+# jev-mailroom
 
 A mailbox triage proof-of-concept. A fake IMAP server feeds a listener, the listener asks **Jev**
 one batched call per email, and plain Python turns the answers into labels that a dashboard

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# jev.sh - single source of truth for running the jev_intro triage stack.
+# jev.sh - single source of truth for running the jev-mailroom triage stack.
 #
 # Three processes:
 #   stub       real IMAP server on 127.0.0.1:1143 backed by ./mailbox
