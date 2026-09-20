@@ -178,3 +178,10 @@ machinery that was removed along the way: [DESIGN.md](DESIGN.md).
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Built with
+
+Developed with [OpenCode](https://opencode.ai) running DeepSeek (`deepseek-v4.1-flash`) as a
+coding agent. The questions, the thresholds and the dashboard were worked out in that
+conversation; the measurements behind them — and the things that were removed or reverted along
+the way — are recorded in [DESIGN.md](DESIGN.md).
